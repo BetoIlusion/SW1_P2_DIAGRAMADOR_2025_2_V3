@@ -23,6 +23,9 @@ Route::middleware([
     //     return Inertia::render('Dashboard');
     // })->name('dashboard');
     Route::get('/dashboard', [DiagramaController::class, 'index'])->name('dashboard');
+    Route::post('/diagrams', [DiagramaController::class, 'store'])->name('diagrams.store');
+    Route::get('/diagrams/{id}', [DiagramaController::class, 'show'])->name('diagrams.show');
+  
 
 
 
@@ -31,7 +34,7 @@ Route::middleware([
 
 
 
-    
+
 
     // Route::post('/trigger-click', function () {
     //     broadcast(new ClickEvent('Click received!'));

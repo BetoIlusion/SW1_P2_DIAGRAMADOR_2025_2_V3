@@ -13,6 +13,12 @@ return new class extends Migration
     {
         Schema::create('reporte_diagramas', function (Blueprint $table) {
             $table->id();
+            $table->json('contenido'); // contenido de formato json del diagrama
+            $table->timestamp('ultima_actualizacion')->useCurrent(); // fecha de ultima actualizacion
+            $table->unsignedBigInteger('user_id'); // id usuario
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->unsignedBigInteger('diagrama_id'); // id diagrama
+            $table->foreign('diagrama_id')->references('id')->on('diagramas')->onDelete('cascade');
             $table->timestamps();
         });
     }
