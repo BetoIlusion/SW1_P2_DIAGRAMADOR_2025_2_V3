@@ -3,17 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Events\ClickEvent;
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the "web" middleware group. Now create something great!
-|
-*/
+use App\Http\Controllers\DiagramaController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -29,19 +19,30 @@ Route::middleware([
     config('jetstream.auth_session'),
     'verified',
 ])->group(function () {
-    Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
-    })->name('dashboard');
-    Route::post('/trigger-click', function () {
-        broadcast(new ClickEvent('Click received!'));
-        return response()->json(['success' => true]);
-    });
+    // Route::get('/dashboard', function () {
+    //     return Inertia::render('Dashboard');
+    // })->name('dashboard');
+    Route::get('/dashboard', [DiagramaController::class, 'index'])->name('dashboard');
 
-    Route::get('/clickear', function () {
-        return Inertia::render('Clickear');
-    })->name('clickear');
 
-    Route::get('/escuchar', function () {
-        return Inertia::render('Escuchar');
-    })->name('escuchar');
+
+
+
+
+
+
+    
+
+    // Route::post('/trigger-click', function () {
+    //     broadcast(new ClickEvent('Click received!'));
+    //     return response()->json(['success' => true]);
+    // });
+
+    // Route::get('/clickear', function () {
+    //     return Inertia::render('Clickear');
+    // })->name('clickear');
+
+    // Route::get('/escuchar', function () {
+    //     return Inertia::render('Escuchar');
+    // })->name('escuchar');
 });
