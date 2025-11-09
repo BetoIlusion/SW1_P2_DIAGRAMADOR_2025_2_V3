@@ -149,14 +149,6 @@ const props = defineProps({
     diagram: {
         type: Object,
         default: null
-    },
-    allUsers: {
-        type: Array,
-        default: () => []
-    },
-    currentCollaborators: {
-        type: Array,
-        default: () => []
     }
 })
 
@@ -170,14 +162,6 @@ const removingUserId = ref(null)
 const successMessage = ref('')
 const errorMessage = ref('')
 
-// Computed: Usuarios disponibles (no colaboradores actuales)
-const availableUsers = computed(() => {
-    if (!props.allUsers.length) return []
-    
-    const collaboratorIds = currentCollaborators.value.map(user => user.id)
-    return props.allUsers.filter(user => !collaboratorIds.includes(user.id))
-})
-
 // Computed: Colaboradores actuales del diagrama seleccionado
 const currentCollaborators = computed(() => {
     if (!selectedDiagram.value || !selectedDiagram.value.colaboradores_actuales) {
@@ -186,11 +170,22 @@ const currentCollaborators = computed(() => {
     return selectedDiagram.value.colaboradores_actuales
 })
 
+// Computed: Usuarios disponibles para este diagrama específico
+const availableUsers = computed(() => {
+    if (!selectedDiagram.value || !selectedDiagram.value.usuarios_no_colaboradores) {
+        return []
+    }
+    return selectedDiagram.value.usuarios_no_colaboradores
+})
+
 // Watchers
 watch(() => props.show, (newVal) => {
     if (newVal) {
         selectedDiagram.value = props.diagram
         clearMessages()
+        console.log('🔍 Diagrama seleccionado:', selectedDiagram.value)
+        console.log('👥 Colaboradores actuales:', currentCollaborators.value)
+        console.log('📋 Usuarios no colaboradores:', availableUsers.value)
     }
 })
 

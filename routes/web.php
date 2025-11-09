@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ColaboradorController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -23,10 +24,21 @@ Route::middleware([
     //     return Inertia::render('Dashboard');
     // })->name('dashboard');
     Route::get('/dashboard', [DiagramaController::class, 'index'])->name('dashboard');
-    Route::post('/diagrams', [DiagramaController::class, 'store'])->name('diagrams.store');
-    Route::get('/diagrams/{id}', [DiagramaController::class, 'show'])->name('diagrams.show');
-  
+    Route::prefix('diagrams')->group(function () {
+        Route::post('/', [DiagramaController::class, 'store'])->name('diagrams.store');
+        Route::get('/{id}', [DiagramaController::class, 'show'])->name('diagrams.show');
+        Route::post('/reporte', [DiagramaController::class, 'diagramaReporte'])->name('diagrams.reporte');
+        Route::post('/{diagrama}/updateWithAI', [DiagramaController::class, 'updateWithAI'])->name('diagrams.updateWithAI');
+    });
+    Route::prefix('colaborators')->group(function () {
+        Route::get('/', [ColaboradorController::class, 'index'])->name('colaborator');
 
+        Route::post('/add', [ColaboradorController::class, 'addCollaborator'])->name('diagrams.collaborators.add');
+        Route::post('/remove', [ColaboradorController::class, 'removeCollaborator'])->name('diagrams.collaborators.remove');
+        Route::post('/{diagrama}/leave', [ColaboradorController::class, 'leaveCollaboration'])
+            ->name('collaborations.leave');
+
+    });
 
 
 

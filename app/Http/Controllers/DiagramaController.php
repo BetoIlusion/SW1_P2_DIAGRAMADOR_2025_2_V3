@@ -22,83 +22,42 @@ class DiagramaController extends Controller
                 ->where('tipo_usuario', 'creador')
                 ->where('is_active', true);
         })->with(['usuarioDiagramas' => function ($query) {
-            $query->where('tipo_usuario', 'colaborador')
-                ->where('is_active', true)
+            $query->where('is_active', true)
                 ->with('user');
         }])->get();
 
-        // Transformar los diagramas para incluir colaboradores
-        $diagramas->each(function ($diagrama) {
+        // Transformar los diagramas para incluir colaboradores y no colaboradores
+        $diagramas->each(function ($diagrama) use ($user) {
+            // Obtener colaboradores actuales (excluyendo al creador)
             $diagrama->colaboradores_actuales = $diagrama->usuarioDiagramas
+                ->where('tipo_usuario', 'colaborador')
                 ->map(function ($usuarioDiagrama) {
                     return $usuarioDiagrama->user;
                 })
-                ->filter(); // Remover valores null
+                ->filter()
+                ->values();
+
+            // Obtener IDs de usuarios que ya son colaboradores o el creador
+            $usuariosExcluidos = $diagrama->usuarioDiagramas
+                ->pluck('user_id')
+                ->toArray();
+
+            // Obtener usuarios no colaboradores (todos los usuarios excepto el actual y los ya relacionados con el diagrama)
+            $diagrama->usuarios_no_colaboradores = User::where('id', '!=', $user->id)
+                ->whereNotIn('id', $usuariosExcluidos)
+                ->get(['id', 'name', 'email'])
+                ->values();
         });
 
-        // Obtener todos los usuarios excepto el actual
-        $usuarios = User::where('id', '!=', $user->id)->get();
+        // Obtener todos los usuarios excepto el actual (para referencia general)
+        $usuarios = User::where('id', '!=', $user->id)->get(['id', 'name', 'email']);
 
         return Inertia::render('Principal', [
             'diagramas' => $diagramas,
             'usuarios' => $usuarios,
         ]);
     }
-    public function addCollaborator(Request $request)
-    {
-        $request->validate([
-            'diagrama_id' => 'required|exists:diagramas,id',
-            'user_id' => 'required|exists:users,id'
-        ]);
 
-        // Verificar que el usuario actual es el creador del diagrama
-        $diagrama = Diagrama::findOrFail($request->diagrama_id);
-        $isCreator = $diagrama->usuarioDiagramas()
-            ->where('user_id', Auth::id())
-            ->where('tipo_usuario', 'creador')
-            ->exists();
-
-        if (!$isCreator) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        // Crear relación de colaborador
-        UsuarioDiagrama::create([
-            'tipo_usuario' => 'colaborador',
-            'is_active' => true,
-            'user_id' => $request->user_id,
-            'diagrama_id' => $request->diagrama_id,
-        ]);
-
-        return response()->json(['success' => true]);
-    }
-
-    public function removeCollaborator(Request $request)
-    {
-        $request->validate([
-            'diagrama_id' => 'required|exists:diagramas,id',
-            'user_id' => 'required|exists:users,id'
-        ]);
-
-        // Verificar que el usuario actual es el creador del diagrama
-        $diagrama = Diagrama::findOrFail($request->diagrama_id);
-        $isCreator = $diagrama->usuarioDiagramas()
-            ->where('user_id', Auth::id())
-            ->where('tipo_usuario', 'creador')
-            ->exists();
-
-        if (!$isCreator) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        // Eliminar relación de colaborador
-        UsuarioDiagrama::where('diagrama_id', $request->diagrama_id)
-            ->where('user_id', $request->user_id)
-            ->where('tipo_usuario', 'colaborador')
-            ->delete();
-
-        return response()->json(['success' => true]);
-    }
     public function store(Request $request)
     {
         $user = Auth::user();
@@ -135,13 +94,108 @@ class DiagramaController extends Controller
     }
     public function show(string $id)
     {
-        $ultimoReporte = ReporteDiagrama::query()
-            ->where('diagrama_id', $id)
-            ->latest()->first();
-        $jsonInicial = json_decode($ultimoReporte->contenido);
+        $jsonInicial = ReporteDiagrama::obtenerUltimoDiagrama($id);
         return view('diagramador', [
             'jsonInicial' => $jsonInicial,
             'diagramaId' => $id,
         ]);
+    }
+    public function diagramaReporte(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            $validated = $request->validate([
+                'diagramData' => 'required',
+                'diagramaId' => 'required|exists:diagramas,id'
+            ]);
+
+            $diagramaJson = $validated['diagramData'];
+            $diagramaId = $validated['diagramaId'];
+
+            if (is_string($diagramaJson)) {
+                $diagramaData = json_decode($diagramaJson, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new \Exception('Error al decodificar JSON: ' . json_last_error_msg());
+                }
+            } else {
+                $diagramaData = $diagramaJson;
+            }
+
+            $reporte = ReporteDiagrama::create([
+                'contenido' => json_encode($diagramaData),
+                'ultima_actualizacion' => now(),
+                'user_id' => $user->id,
+                'diagrama_id' => $diagramaId,
+            ]);
+            return response()->json([
+                'message' => 'Diagrama guardado correctamente',
+                'reporte_id' => $reporte->id
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Log::warning('Error de validación en diagrama reporte', ['errors' => $e->errors()]);
+            return response()->json([
+                'error' => 'Datos inválidos',
+                'details' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'error' => 'Error interno del servidor',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+    public function updateWithAI(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'diagramData' => 'required|string',
+                'diagramaId' => 'required|exists:diagramas,id',
+                'prompt' => 'required|string|max:500',
+            ]);
+
+            $diagramaJson = $validated['diagramData'];
+            $userPrompt = $validated['prompt'];
+            $diagramaId = $validated['diagramaId'];
+
+            // Llamada a la API de Gemini
+            $updatedDiagramJson = $this->callGeminiAI($diagramaJson, $userPrompt);
+
+            // Decodificar para validar y guardar
+            $updatedDiagramData = json_decode($updatedDiagramJson, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                // Log::error('No se pudo decodificar el JSON generado por Gemini.', ['jsonString' => $updatedDiagramJson]);
+                throw new \Exception('La respuesta de la IA no es un JSON válido: ' . json_last_error_msg());
+            }
+
+            // Verificar estructura mínima de GoJS GraphLinksModel
+            if (
+                !isset($updatedDiagramData['class']) || $updatedDiagramData['class'] !== 'GraphLinksModel' ||
+                !isset($updatedDiagramData['nodeDataArray']) || !isset($updatedDiagramData['linkDataArray'])
+            ) {
+                // Log::error('El JSON devuelto no cumple con la estructura GoJS GraphLinksModel.', ['jsonString' => $updatedDiagramJson]);
+                throw new \Exception('El JSON devuelto no cumple con la estructura GoJS GraphLinksModel.');
+            }
+
+            // Guardar el nuevo estado en un reporte
+            ReporteDiagrama::create([
+                'contenido' => json_encode($updatedDiagramData),
+                'ultima_actualizacion' => now(),
+                'user_id' => Auth::id(),
+                'diagrama_id' => $diagramaId,
+            ]);
+
+
+            // Transmitir el cambio a otros usuarios
+            // broadcast(new DiagramaActualizado($diagramaId, $updatedDiagramJson))->toOthers();
+
+            return response()->json([
+                'message' => 'Diagrama actualizado con IA.',
+                'updatedDiagram' => $updatedDiagramData
+            ]);
+        } catch (\Exception $e) {
+            // Log::error('Error en updateWithAI: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 }

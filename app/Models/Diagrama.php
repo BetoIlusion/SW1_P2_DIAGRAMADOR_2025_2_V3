@@ -56,4 +56,5 @@ class Diagrama extends Model
             ]
         ];
     }
+    
 }

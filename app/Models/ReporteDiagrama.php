@@ -25,4 +25,17 @@ class ReporteDiagrama extends Model
     {
         return $this->belongsTo(Diagrama::class);
     }
+    public static function obtenerUltimoDiagrama(int $diagramaId): ?array
+    {
+        $ultimoReporte = self::where('diagrama_id', $diagramaId)
+            ->latest()
+            ->first();
+
+        if ($ultimoReporte) {
+            return json_decode($ultimoReporte->contenido, true);
+        }
+
+        return null;
+    }
+
 }

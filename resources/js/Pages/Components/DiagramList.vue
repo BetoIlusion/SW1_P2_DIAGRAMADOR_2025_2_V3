@@ -6,18 +6,14 @@
                 <h3 class="text-lg font-medium text-gray-900">
                     My Diagrams ({{ filteredDiagramas.length }})
                 </h3>
-                
+
                 <!-- Buscador -->
                 <div class="relative w-full sm:w-64">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <i class="fas fa-search text-gray-400"></i>
                     </div>
-                    <TextInput
-                        v-model="searchTerm"
-                        type="text"
-                        class="pl-10 w-full"
-                        placeholder="Search by name or description..."
-                    />
+                    <TextInput v-model="searchTerm" type="text" class="pl-10 w-full"
+                        placeholder="Search by name or description..." />
                 </div>
             </div>
         </div>
@@ -48,12 +44,9 @@
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                    <tr 
-                        v-for="(diagrama, index) in filteredDiagramas" 
-                        :key="diagrama.id"
+                    <tr v-for="(diagrama, index) in filteredDiagramas" :key="diagrama.id"
                         :class="index % 2 === 0 ? 'bg-white' : 'bg-gray-50 hover:bg-gray-100'"
-                        class="transition-colors duration-150"
-                    >
+                        class="transition-colors duration-150">
                         <!-- ID -->
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             #{{ diagrama.id }}
@@ -76,9 +69,8 @@
                         <!-- Colaboradores -->
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center">
-                                <span 
-                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                                >
+                                <span
+                                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                     <i class="fas fa-users mr-1"></i>
                                     {{ getCollaboratorsCount(diagrama) }}
                                 </span>
@@ -87,18 +79,14 @@
 
                         <!-- Status -->
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <span 
-                                :class="[
-                                    'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                                    diagrama.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                                ]"
-                            >
-                                <i 
-                                    :class="[
-                                        'fas mr-1',
-                                        diagrama.is_active ? 'fa-check-circle' : 'fa-pause-circle'
-                                    ]"
-                                ></i>
+                            <span :class="[
+                                'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                                diagrama.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            ]">
+                                <i :class="[
+                                    'fas mr-1',
+                                    diagrama.is_active ? 'fa-check-circle' : 'fa-pause-circle'
+                                ]"></i>
                                 {{ diagrama.is_active ? 'Active' : 'Inactive' }}
                             </span>
                         </td>
@@ -107,38 +95,30 @@
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div class="flex justify-end space-x-2">
                                 <!-- Ver/Editar -->
-                                <button
-                                    @click="viewDiagram(diagrama.id)"
+                                <button @click="viewDiagram(diagrama.id)"
                                     class="text-indigo-600 hover:text-indigo-900 transition-colors duration-150"
-                                    title="View/Edit Diagram"
-                                >
+                                    title="View/Edit Diagram">
                                     <i class="fas fa-eye"></i>
                                 </button>
 
                                 <!-- Exportar -->
-                                <button
-                                    @click="exportDiagram(diagrama)"
+                                <button @click="exportDiagram(diagrama)"
                                     class="text-green-600 hover:text-green-900 transition-colors duration-150"
-                                    title="Export Diagram"
-                                >
+                                    title="Export Diagram">
                                     <i class="fas fa-download"></i>
                                 </button>
 
                                 <!-- Colaboradores -->
-                                <button
-                                    @click="showCollaborators(diagrama)"
+                                <button @click="showCollaborators(diagrama)"
                                     class="text-blue-600 hover:text-blue-900 transition-colors duration-150"
-                                    title="Manage Collaborators"
-                                >
+                                    title="Manage Collaborators">
                                     <i class="fas fa-users"></i>
                                 </button>
 
                                 <!-- Eliminar -->
-                                <button
-                                    @click="confirmDelete(diagrama)"
+                                <button @click="confirmDelete(diagrama)"
                                     class="text-red-600 hover:text-red-900 transition-colors duration-150"
-                                    title="Delete Diagram"
-                                >
+                                    title="Delete Diagram">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -148,10 +128,7 @@
             </table>
 
             <!-- Empty State -->
-            <div 
-                v-if="filteredDiagramas.length === 0" 
-                class="text-center py-12"
-            >
+            <div v-if="filteredDiagramas.length === 0" class="text-center py-12">
                 <i class="fas fa-diagram-project text-4xl text-gray-300 mb-4"></i>
                 <p class="text-gray-500 text-lg">
                     {{ searchTerm ? 'No diagrams found matching your search.' : 'No diagrams created yet.' }}
@@ -164,14 +141,8 @@
     </div>
 
     <!-- Modal de Colaboradores -->
-    <CollaboratorsModal
-        :show="showCollaboratorsModal"
-        :diagram="selectedDiagram"
-        :all-users="usuarios"
-        :current-collaborators="getCurrentCollaborators(selectedDiagram)"
-        @close="showCollaboratorsModal = false"
-        @updated="handleCollaboratorsUpdated"
-    />
+    <CollaboratorsModal :show="showCollaboratorsModal" :diagram="selectedDiagram"
+        @close="showCollaboratorsModal = false" @updated="handleCollaboratorsUpdated" />
 
     <!-- Modal de Confirmación para Eliminar -->
     <ConfirmationModal :show="showDeleteModal" @close="showDeleteModal = false">
@@ -186,7 +157,7 @@
                 </div>
             </div>
             <p class="text-center text-gray-700">
-                Are you sure you want to delete the diagram 
+                Are you sure you want to delete the diagram
                 <span class="font-semibold">"{{ diagramToDelete?.nombre }}"</span>?
             </p>
             <p class="text-center text-sm text-gray-500 mt-2">
@@ -252,7 +223,7 @@ const filteredDiagramas = computed(() => {
     }
 
     const term = searchTerm.value.toLowerCase()
-    return props.diagramas.filter(diagrama => 
+    return props.diagramas.filter(diagrama =>
         diagrama.nombre.toLowerCase().includes(term) ||
         (diagrama.descripcion && diagrama.descripcion.toLowerCase().includes(term))
     )
