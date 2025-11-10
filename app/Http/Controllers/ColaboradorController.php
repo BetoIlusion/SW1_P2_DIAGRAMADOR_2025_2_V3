@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class ColaboradorController extends Controller
 {
@@ -62,9 +63,9 @@ class ColaboradorController extends Controller
                     ];
                 });
 
-
             return Inertia::render('Colaborador/Index', [
                 'diagramas' => $diagramas,
+                'auth_user' => Auth::user(), // ← AÑADE ESTO
             ]);
         } catch (\Exception $e) {
 
@@ -110,10 +111,20 @@ class ColaboradorController extends Controller
                 'user_id' => $request->user_id,
                 'diagrama_id' => $request->diagrama_id,
             ]);
-
+            Log::info('COLLABORATOR_ADDED', [
+                'diagrama_id' => $request->diagrama_id,
+                'user_id' => $request->user_id,
+                'action' => 'added',
+                'broadcast_to' => [
+                    'diagrama.' . $request->diagrama_id,
+                    'user.' . $request->user_id
+                ]
+            ]);
+            // Broadcast event para notificar al usuario agregado
+            broadcast(new \App\Events\CollaboratorUpdated($request->diagrama_id, $request->user_id, 'added'));
             return back()->with('success', 'Collaborator added successfully!');
         } catch (\Exception $e) {
-            \Log::error('Error adding collaborator: ' . $e->getMessage());
+            Log::error('Error adding collaborator: ' . $e->getMessage());
             return back()->with('error', 'Error adding collaborator: ' . $e->getMessage());
         }
     }
@@ -144,9 +155,20 @@ class ColaboradorController extends Controller
                 ->delete();
 
             if ($deleted) {
+                // Broadcast event para notificar al usuario removido
+                broadcast(new \App\Events\CollaboratorUpdated($request->diagrama_id, $request->user_id, 'removed'));
+
                 return back()->with('success', 'Collaborator removed successfully!');
             }
-
+            Log::info('COLLABORATOR_ADDED', [
+                'diagrama_id' => $request->diagrama_id,
+                'user_id' => $request->user_id,
+                'action' => 'removed',
+                'broadcast_to' => [
+                    'diagrama.' . $request->diagrama_id,
+                    'user.' . $request->user_id
+                ]
+            ]);
             return back()->with('error', 'Collaborator not found.');
         } catch (\Exception $e) {
             \Log::error('Error removing collaborator: ' . $e->getMessage());

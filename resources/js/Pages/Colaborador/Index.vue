@@ -38,6 +38,7 @@
 </template>
 
 <script setup>
+import { onMounted, onUnmounted } from 'vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import CollaborationList from '../Components/CollaborationList.vue'
 
@@ -53,4 +54,26 @@ defineProps({
         default: null
     }
 })
+
+// Suscribirse a canal público como en tu ejercicio
+onMounted(() => {
+    if (!window.Echo) {
+        console.warn('Pusher no está disponible');
+        return;
+    }
+
+    // Escuchar canal público 'collaborations'
+    window.Echo.channel('collaborations')
+        .listen('.collaborator.updated', (event) => {
+            console.log('🔔 Evento recibido en colaborador:', event);
+            // Recargar la página para ver cambios
+            window.location.reload();
+        });
+});
+
+onUnmounted(() => {
+    if (window.Echo) {
+        window.Echo.leave('collaborations');
+    }
+});
 </script>

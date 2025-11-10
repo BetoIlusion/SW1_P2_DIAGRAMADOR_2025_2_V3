@@ -256,6 +256,7 @@ const removeCollaborator = async (userId) => {
         removingUserId.value = null
     }
 }
+
 </script>
 
 <style scoped>
