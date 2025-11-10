@@ -250,10 +250,9 @@ const leaveCollaboration = async () => {
         await router.post(route('collaborations.leave', diagramToLeave.value.id), {
             preserveScroll: true,
             onSuccess: () => {
-                showLeaveModal.value = false
+                showLeaveModal.value = false  // ← CERRAR MODAL AQUÍ
                 diagramToLeave.value = null
-                // Recargar para reflejar los cambios
-                router.reload()
+                router.reload({ only: ['diagramas'] })  // ← Actualiza lista sin recargar página
             },
             onError: (errors) => {
                 console.error('Error leaving collaboration:', errors)

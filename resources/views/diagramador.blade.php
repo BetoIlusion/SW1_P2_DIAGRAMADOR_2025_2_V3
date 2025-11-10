@@ -80,7 +80,7 @@
             // Access the diagram model passed from Laravel
             var jsonInicial = @json($jsonInicial);
             var diagramaId = @json($diagramaId);
-
+            var isMyChange = false;
             var linkingMode = false;
             var sourceNode = null;
             var linkingTool = null;
@@ -224,6 +224,7 @@
                     })
                     .bindTwoWay('text', 'type')
                 );
+
             // Node template
             myDiagram.nodeTemplate = new go.Node('Auto', {
                     locationSpot: go.Spot.Center,
@@ -332,7 +333,7 @@
                         console.error('No se encontró el token CSRF');
                         return;
                     }
-
+                    isMyChange = true;
                     fetch("{{ route('diagrams.reporte') }}", {
                             method: 'POST',
                             headers: {
@@ -347,7 +348,7 @@
                         })
                         .then(response => {
                             console.log('Respuesta recibida:', response.status, response.statusText);
-
+                            isMyChange = false;
                             if (!response.ok) {
                                 return response.text().then(text => {
                                     console.error('Error detallado:', text);
@@ -358,9 +359,11 @@
                         })
                         .then(data => {
                             console.log('Diagrama guardado correctamente:', data);
+                            isMyChange = false;
                         })
                         .catch(error => {
                             console.error('Error completo al guardar:', error);
+                            isMyChange = false;
                         });
 
                 } catch (error) {
@@ -1029,6 +1032,7 @@
                 }
             });
 
+            setupEchoListener(myDiagram, diagramaId); // Iniciar listener Pusher
 
 
             // Function to add a new class
@@ -1116,19 +1120,28 @@
         }
 
         // Una vez que 'init' se ha ejecutado y el diagrama está listo, configuramos Echo.
-        function setupEchoListener(diagram, diagramId) {
-            if (diagramId) {
-                window.Echo.private(`diagrama.${diagramaId}`)
-                    .listen('.diagrama.actualizado', (e) => {
-                        console.log('Diagrama actualizado recibido vía Reverb:', e);
-
-                        // 🔥 SOLUCIÓN SIMPLE: Recargar la página para ver los cambios.
-                        // El método toOthers() en el controlador asegura que esta recarga
-                        // solo ocurra en los navegadores de los otros colaboradores.
-                        console.log('Forzando recarga de la página para sincronizar cambios.');
-                        window.location.reload();
-                    });
+        function setupEchoListener(diagram, diagramaId) {
+            if (!diagramaId || !window.Echo) {
+                console.warn('Pusher o diagramaId no disponible', {
+                    diagramaId,
+                    hasEcho: !!window.Echo
+                });
+                return;
             }
+
+            console.log('Suscrito a canal público: diagrama.' + diagramaId);
+
+            window.Echo.channel('diagrama.' + diagramaId)
+                .listen('.diagrama.updated', (e) => {
+                    console.log('Evento recibido:', e);
+
+                    if (isMyChange) {
+                        console.log('Ignorando mi propio cambio');
+                        return;
+                    }
+
+                    diagram.model = go.GraphLinksModel.fromJson(e.updated_diagram);
+                });
         }
 
         // Initialize when DOM is loaded

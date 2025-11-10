@@ -127,6 +127,11 @@ class DiagramaController extends Controller
                 'user_id' => $user->id,
                 'diagrama_id' => $diagramaId,
             ]);
+            // Broadcast el cambio a canal público
+            broadcast(new \App\Events\DiagramaActualizado(
+                $request->input('diagramaId'),
+                $request->input('diagramData')
+            ));
             return response()->json([
                 'message' => 'Diagrama guardado correctamente',
                 'reporte_id' => $reporte->id
