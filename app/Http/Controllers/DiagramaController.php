@@ -12,7 +12,7 @@ use App\Models\User;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-
+use App\Services\GeminiMermaidService;
 
 class DiagramaController extends Controller
 {
@@ -252,5 +252,28 @@ class DiagramaController extends Controller
             return back()->with('error', 'Error: ' . $e->getMessage());
         }
     }
-    public function exportDiagram(string $id) {}
+    public function exportDiagram(string $id)
+    {
+        try {
+            // 1. Obtener último JSON
+            $jsonInicial = ReporteDiagrama::obtenerUltimoDiagrama($id);
+
+            if (!$jsonInicial) {
+                return "No se encontró diagrama con ID: {$id}";
+            }
+
+            // 2. Convertir a Mermaid
+            $service = new GeminiMermaidService();
+            $mermaid = $service->toMermaid($jsonInicial);
+
+            // 3. Para pruebas visuales: devolver como texto plano
+            Log::info($mermaid);
+            return response($mermaid, 200, [
+                'Content-Type' => 'text/plain; charset=utf-8',
+                'X-Mermaid' => 'true'
+            ]);
+        } catch (\Exception $e) {
+            return "Error: " . $e->getMessage();
+        }
+    }
 }
