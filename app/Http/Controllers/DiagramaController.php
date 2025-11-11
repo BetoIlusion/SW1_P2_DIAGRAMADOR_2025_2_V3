@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\GeminiDiagramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Diagrama;
@@ -9,6 +10,9 @@ use App\Models\UsuarioDiagrama;
 use App\Models\ReporteDiagrama;
 use App\Models\User;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+
 
 class DiagramaController extends Controller
 {
@@ -131,7 +135,7 @@ class DiagramaController extends Controller
             broadcast(new \App\Events\DiagramaActualizado(
                 $request->input('diagramaId'),
                 $request->input('diagramData')
-            ));
+            ))->toOthers();
             return response()->json([
                 'message' => 'Diagrama guardado correctamente',
                 'reporte_id' => $reporte->id
@@ -203,4 +207,50 @@ class DiagramaController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+    public function importImage(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:jpg,jpeg,png,webp|max:2048',
+        ]);
+
+        $file = $request->file('file');
+        $user = Auth::user();
+
+        try {
+            // Instancia del servicio
+            $service = new GeminiDiagramService();
+            $diagramData = $service->analyzeImage($file->getRealPath(), $file->getMimeType());
+
+            // Crear diagrama
+            $diagrama = Diagrama::create([
+                'nombre' => 'Diagrama desde Imagen - ' . now()->format('d/m H:i'),
+                'descripcion' => 'Generado por IA desde imagen',
+                'contenido' => json_encode($diagramData, JSON_PRETTY_PRINT),
+            ]);
+
+            // Reporte
+            ReporteDiagrama::create([
+                'contenido' => json_encode($diagramData),
+                'ultima_actualizacion' => now(),
+                'user_id' => $user->id,
+                'diagrama_id' => $diagrama->id,
+            ]);
+
+            // Relación
+            UsuarioDiagrama::create([
+                'user_id' => $user->id,
+                'diagrama_id' => $diagrama->id,
+                'tipo_usuario' => 'creador',
+                'is_active' => true,
+            ]);
+
+            // Redirección directa
+            return redirect()
+                ->route('diagrams.show', ['id' => $diagrama->id])
+                ->with('success', 'Diagrama creado con IA. ¡Listo para editar!');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error: ' . $e->getMessage());
+        }
+    }
+    public function exportDiagram(string $id) {}
 }

@@ -6,10 +6,16 @@
                     Dashboard
                 </h2>
 
-                <PrimaryButton @click="showCreateModal = true">
-                    <i class="fas fa-plus mr-2"></i>
-                    Create Diagram
-                </PrimaryButton>
+                <div class="flex space-x-3">
+                    <!-- Botón Importar Diagrama -->
+                    <ImportButton />
+                    
+                    <!-- Botón Crear Diagrama -->
+                    <PrimaryButton @click="showCreateModal = true">
+                        <i class="fas fa-plus mr-2"></i>
+                        Create Diagram
+                    </PrimaryButton>
+                </div>
             </div>
         </template>
 
@@ -31,6 +37,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import CreateDiagramModal from './Components/CreateDiagramModal.vue'
 import DiagramList from './Components/DiagramList.vue'
+import ImportButton from './Diagrama/Components/ImportButton.vue' 
 
 // Props desde el controlador
 defineProps({

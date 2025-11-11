@@ -29,6 +29,8 @@ Route::middleware([
         Route::get('/{id}', [DiagramaController::class, 'show'])->name('diagrams.show');
         Route::post('/reporte', [DiagramaController::class, 'diagramaReporte'])->name('diagrams.reporte');
         Route::post('/{diagrama}/updateWithAI', [DiagramaController::class, 'updateWithAI'])->name('diagrams.updateWithAI');
+        Route::post('/import-image', [DiagramaController::class, 'importImage'])->name('diagrams.import-image');
+        Route::get('/export/{id}', [DiagramaController::class, 'exportDiagram'])->name('diagrams.export');
     });
     Route::prefix('colaborators')->group(function () {
         Route::get('/', [ColaboradorController::class, 'index'])->name('colaborator');

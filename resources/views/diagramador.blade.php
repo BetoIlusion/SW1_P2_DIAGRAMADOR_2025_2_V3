@@ -80,7 +80,6 @@
             // Access the diagram model passed from Laravel
             var jsonInicial = @json($jsonInicial);
             var diagramaId = @json($diagramaId);
-            var isMyChange = false;
             var linkingMode = false;
             var sourceNode = null;
             var linkingTool = null;
@@ -333,7 +332,6 @@
                         console.error('No se encontró el token CSRF');
                         return;
                     }
-                    isMyChange = true;
                     fetch("{{ route('diagrams.reporte') }}", {
                             method: 'POST',
                             headers: {
@@ -348,7 +346,6 @@
                         })
                         .then(response => {
                             console.log('Respuesta recibida:', response.status, response.statusText);
-                            isMyChange = false;
                             if (!response.ok) {
                                 return response.text().then(text => {
                                     console.error('Error detallado:', text);
@@ -359,11 +356,9 @@
                         })
                         .then(data => {
                             console.log('Diagrama guardado correctamente:', data);
-                            isMyChange = false;
                         })
                         .catch(error => {
                             console.error('Error completo al guardar:', error);
-                            isMyChange = false;
                         });
 
                 } catch (error) {
@@ -1032,7 +1027,7 @@
                 }
             });
 
-            setupEchoListener(myDiagram, diagramaId); // Iniciar listener Pusher
+            setupEchoListener(myDiagram, diagramaId);
 
 
             // Function to add a new class
@@ -1051,7 +1046,6 @@
             myDiagram.rebuildParts();
 
             // 🔥 ¡AQUÍ ESTÁ LA CORRECCIÓN! Llamamos a la función para escuchar eventos.
-            setupEchoListener(myDiagram, diagramaId);
         }
 
         // Función para actualizar el diagrama con IA
@@ -1135,10 +1129,7 @@
                 .listen('.diagrama.updated', (e) => {
                     console.log('Evento recibido:', e);
 
-                    if (isMyChange) {
-                        console.log('Ignorando mi propio cambio');
-                        return;
-                    }
+                 
 
                     diagram.model = go.GraphLinksModel.fromJson(e.updated_diagram);
                 });
