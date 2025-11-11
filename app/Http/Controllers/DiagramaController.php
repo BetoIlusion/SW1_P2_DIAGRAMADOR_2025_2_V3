@@ -13,6 +13,10 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Services\GeminiMermaidService;
+use App\Services\SpringBootFlutterGeneratorService;
+use App\Services\ProjectZipperService;
+use App\Services\AIService;
+
 
 class DiagramaController extends Controller
 {
@@ -131,11 +135,18 @@ class DiagramaController extends Controller
                 'user_id' => $user->id,
                 'diagrama_id' => $diagramaId,
             ]);
+            Log::info('Diagrama guardado correctamente', [
+                'user_id' => $user->id,
+                'diagrama_id' => $diagramaId,
+                'reporte_id' => $reporte->id,
+                'contenido_guardado' => $diagramaData // Añadir el contenido guardado al log
+            ]);
+
             // Broadcast el cambio a canal público
-            broadcast(new \App\Events\DiagramaActualizado(
-                $request->input('diagramaId'),
-                $request->input('diagramData')
-            ))->toOthers();
+            // broadcast(new \App\Events\DiagramaActualizado(
+            //     $request->input('diagramaId'),
+            //     $request->input('diagramData')
+            // ))->toOthers();
             return response()->json([
                 'message' => 'Diagrama guardado correctamente',
                 'reporte_id' => $reporte->id
@@ -167,43 +178,27 @@ class DiagramaController extends Controller
             $userPrompt = $validated['prompt'];
             $diagramaId = $validated['diagramaId'];
 
-            // Llamada a la API de Gemini
-            $updatedDiagramJson = $this->callGeminiAI($diagramaJson, $userPrompt);
-
-            // Decodificar para validar y guardar
-            $updatedDiagramData = json_decode($updatedDiagramJson, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                // Log::error('No se pudo decodificar el JSON generado por Gemini.', ['jsonString' => $updatedDiagramJson]);
-                throw new \Exception('La respuesta de la IA no es un JSON válido: ' . json_last_error_msg());
-            }
-
-            // Verificar estructura mínima de GoJS GraphLinksModel
-            if (
-                !isset($updatedDiagramData['class']) || $updatedDiagramData['class'] !== 'GraphLinksModel' ||
-                !isset($updatedDiagramData['nodeDataArray']) || !isset($updatedDiagramData['linkDataArray'])
-            ) {
-                // Log::error('El JSON devuelto no cumple con la estructura GoJS GraphLinksModel.', ['jsonString' => $updatedDiagramJson]);
-                throw new \Exception('El JSON devuelto no cumple con la estructura GoJS GraphLinksModel.');
-            }
+            // Usar el servicio de IA
+            $aiService = new AIService();
+            $updatedDiagramData = $aiService->updateDiagramWithAI($diagramaJson, $userPrompt, $diagramaId);
 
             // Guardar el nuevo estado en un reporte
             ReporteDiagrama::create([
-                'contenido' => json_encode($updatedDiagramData),
-                'ultima_actualizacion' => now(),
-                'user_id' => Auth::id(),
-                'diagrama_id' => $diagramaId,
+                'user_id' => Auth::id(), 
+                'diagrama_id' => $diagramaId, 
+                'contenido' => json_encode($updatedDiagramData)
             ]);
 
-
-            // Transmitir el cambio a otros usuarios
-            // broadcast(new DiagramaActualizado($diagramaId, $updatedDiagramJson))->toOthers();
+            // Transmitir el cambio a otros usuarios (si es necesario)
+            // broadcast(new DiagramaActualizado($diagramaId, json_encode($updatedDiagramData)))->toOthers();
 
             return response()->json([
                 'message' => 'Diagrama actualizado con IA.',
                 'updatedDiagram' => $updatedDiagramData
             ]);
+
         } catch (\Exception $e) {
-            // Log::error('Error en updateWithAI: ' . $e->getMessage());
+            Log::error('Error en updateWithAI: ' . $e->getMessage());
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
@@ -255,25 +250,67 @@ class DiagramaController extends Controller
     public function exportDiagram(string $id)
     {
         try {
-            // 1. Obtener último JSON
+            Log::info("Iniciando exportación de diagrama con ID: {$id}");
+
+            // 1. Obtener último JSON del diagrama
             $jsonInicial = ReporteDiagrama::obtenerUltimoDiagrama($id);
 
             if (!$jsonInicial) {
-                return "No se encontró diagrama con ID: {$id}";
+                Log::warning("Diagrama no encontrado para ID: {$id}");
+                return response()->json([
+                    'error' => 'No se encontró diagrama con ID: ' . $id
+                ], 404);
             }
+            Log::info("JSON inicial del diagrama obtenido para ID: {$id}");
 
             // 2. Convertir a Mermaid
-            $service = new GeminiMermaidService();
-            $mermaid = $service->toMermaid($jsonInicial);
+            $mermaidService = new GeminiMermaidService();
+            $mermaid = $mermaidService->toMermaid($jsonInicial);
+            Log::info("Diagrama convertido a formato Mermaid para ID: {$id}");
 
-            // 3. Para pruebas visuales: devolver como texto plano
-            Log::info($mermaid);
-            return response($mermaid, 200, [
-                'Content-Type' => 'text/plain; charset=utf-8',
-                'X-Mermaid' => 'true'
+            // 3. Generar proyecto Spring Boot + Flutter
+            $projectGenerator = new SpringBootFlutterGeneratorService($mermaid, "erp{$id}");
+            $result = $projectGenerator->generateCompleteProject();
+            // En el método exportDiagram
+            Log::info("Generación de proyecto Spring Boot + Frontend completada para ID: {$id}", ['result_success' => $result['success']]);
+
+            if (!$result['success']) {
+                Log::error("Error al generar proyecto para ID: {$id}: " . $result['error']);
+                return response()->json([
+                    'error' => 'Error al generar proyecto: ' . $result['error']
+                ], 500);
+            }
+            Log::info("Proyecto generado exitosamente en: " . $result['project_path']);
+
+            // 4. Crear ZIP del proyecto
+            Log::info("Iniciando creación de ZIP...");
+            $zipper = new ProjectZipperService();
+            $zipPath = $zipper->createZip($result['project_path'], "erp-{$id}.zip");
+            Log::info("Archivo ZIP creado exitosamente: {$zipPath}");
+
+            // 5. Verificar que el archivo ZIP existe
+            if (!file_exists($zipPath)) {
+                Log::error("El archivo ZIP no se creó: {$zipPath}");
+                throw new \Exception("No se pudo crear el archivo ZIP");
+            }
+
+            Log::info("Enviando archivo ZIP para descarga...");
+
+            Log::info("Archivo ZIP creado exitosamente: {$zipPath}");
+            Log::info("Enviando archivo ZIP para descarga...");
+
+            // ✅ SOLUCIÓN: Usar streamDownload para forzar la descarga
+            return response()->streamDownload(function () use ($zipPath) {
+                echo file_get_contents($zipPath);
+            }, "erp-{$id}.zip", [
+                'Content-Type' => 'application/zip',
+                'Content-Disposition' => 'attachment; filename="erp-' . $id . '.zip"',
             ]);
         } catch (\Exception $e) {
-            return "Error: " . $e->getMessage();
+            Log::error("Error inesperado durante la exportación del diagrama ID: {$id}: " . $e->getMessage());
+            return response()->json([
+                'error' => 'Error en exportación: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

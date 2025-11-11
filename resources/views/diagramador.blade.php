@@ -60,6 +60,10 @@
     <div id="container">
         <div id="leftPanel">
             <div id="buttonPanel">
+                <button onclick="location.href='{{ route('dashboard') }}'">Volver</button>
+            </div>
+
+            <div id="buttonPanel">
                 <button onclick="addNewClass()">Add New Class</button>
                 {{-- <button onclick="location.href='{{ route('diagramas.exportarSpringBoot', ['id' => $id]) }}'">Export to Spring Boot</button> --}}
             </div>

@@ -240,14 +240,14 @@ const getCurrentCollaborators = (diagram) => {
 }
 
 const viewDiagram = (id) => {
-    router.visit(route('diagrams.show', id))
+    window.open(route('diagrams.show', id), '_blank');
 }
 
 const exportDiagram = (diagrama) => {
     console.log('Exporting diagram:', diagrama)
-    router.visit(route('diagrams.export', diagrama.id), {
-        method: 'get'
-    })
+    // FIX: Usa window.open para bypass Inertia y forzar descarga
+    const url = route('diagrams.export', diagrama.id);
+    window.open(url, '_blank');
 }
 
 const showCollaborators = (diagrama) => {

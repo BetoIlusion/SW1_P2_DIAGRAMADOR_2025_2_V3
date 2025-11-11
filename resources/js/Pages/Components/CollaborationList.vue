@@ -230,10 +230,8 @@ const viewDiagram = (id) => {
 }
 
 const exportDiagram = (diagrama) => {
-    console.log('Exporting collaboration diagram:', diagrama)
-    router.visit(route('diagrams.export', diagrama.id), {
-        method: 'get'
-    })
+    // Abrir en nueva pestaña para descargar el archivo
+    window.open(route('diagrams.export', diagrama.id), '_blank');
 }
 
 const confirmLeaveCollaboration = (diagrama) => {
