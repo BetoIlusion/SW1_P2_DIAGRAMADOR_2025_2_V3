@@ -348,12 +348,12 @@ void main() {
     }
 
     private function generateServiceContent($className)
-    {
-        $studlyName = Str::studly($className);
-        $camelName = Str::camel($className);
-        $tableName = Str::snake(Str::plural($className));
+{
+    $studlyName = Str::studly($className);
+    $camelName = Str::camel($className);
+    $tableName = Str::snake(Str::plural($className));
 
-        $content = 'import \'dart:convert\';
+    $content = 'import \'dart:convert\';
 import \'package:http/http.dart\' as http;
 import \'../config/app_config.dart\';
 import \'../models/' . Str::snake($className) . '_model.dart\';
@@ -362,74 +362,114 @@ class ' . $studlyName . 'Service {
   static const String basePath = "api/' . $tableName . '";
 
   static Future<List<' . $studlyName . '>> getAll() async {
-    final response = await http.get(
-      Uri.parse("${AppConfig.baseUrl}/$basePath"),
-      headers: AppConfig.headers,
-    );
+    try {
+      final response = await http.get(
+        Uri.parse("${AppConfig.baseUrl}/$basePath"),
+        headers: AppConfig.headers,
+      );
 
-    if (response.statusCode == 200) {
-      final List<dynamic> jsonList = json.decode(response.body);
-      return jsonList.map((json) => ' . $studlyName . '.fromJson(json)).toList();
-    } else {
-      throw Exception("Failed to load ' . $studlyName . ' list");
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = json.decode(response.body);
+        return jsonList.map((json) => ' . $studlyName . '.fromJson(json)).toList();
+      } else {
+        final errorMessage = _extractErrorMessage(response);
+        throw Exception(\'Failed to load ' . $studlyName . ' list: $errorMessage\');
+      }
+    } catch (e) {
+      throw Exception(\'Network error loading ' . $studlyName . ' list: $e\');
     }
   }
 
   static Future<' . $studlyName . '> getById(int id) async {
-    final response = await http.get(
-      Uri.parse("${AppConfig.baseUrl}/$basePath/\$id"),
-      headers: AppConfig.headers,
-    );
+    try {
+      final response = await http.get(
+        Uri.parse("${AppConfig.baseUrl}/$basePath/$id"),
+        headers: AppConfig.headers,
+      );
 
-    if (response.statusCode == 200) {
-      return ' . $studlyName . '.fromJson(json.decode(response.body));
-    } else {
-      throw Exception("Failed to load ' . $studlyName . '");
+      if (response.statusCode == 200) {
+        return ' . $studlyName . '.fromJson(json.decode(response.body));
+      } else {
+        final errorMessage = _extractErrorMessage(response);
+        throw Exception(\'Failed to load ' . $studlyName . ': $errorMessage\');
+      }
+    } catch (e) {
+      throw Exception(\'Network error loading ' . $studlyName . ': $e\');
     }
   }
 
   static Future<' . $studlyName . '> create(' . $studlyName . ' ' . $camelName . ') async {
-    final response = await http.post(
-      Uri.parse("${AppConfig.baseUrl}/$basePath"),
-      headers: AppConfig.headers,
-      body: json.encode(' . $camelName . '.toJson()),
-    );
+    try {
+      final response = await http.post(
+        Uri.parse("${AppConfig.baseUrl}/$basePath"),
+        headers: AppConfig.headers,
+        body: json.encode(' . $camelName . '.toJson()),
+      );
 
-    if (response.statusCode == 201 || response.statusCode == 200) {
-      return ' . $studlyName . '.fromJson(json.decode(response.body));
-    } else {
-      throw Exception("Failed to create ' . $studlyName . '. Status code: ${response.statusCode}");
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return ' . $studlyName . '.fromJson(json.decode(response.body));
+      } else {
+        final errorMessage = _extractErrorMessage(response);
+        throw Exception(\'Failed to create ' . $studlyName . ': $errorMessage\');
+      }
+    } catch (e) {
+      throw Exception(\'Network error creating ' . $studlyName . ': $e\');
     }
   }
 
   static Future<' . $studlyName . '> update(int id, ' . $studlyName . ' ' . $camelName . ') async {
-    final response = await http.put(
-      Uri.parse("${AppConfig.baseUrl}/$basePath/\$id"),
-      headers: AppConfig.headers,
-      body: json.encode(' . $camelName . '.toJson()),
-    );
+    try {
+      final response = await http.put(
+        Uri.parse("${AppConfig.baseUrl}/$basePath/$id"),
+        headers: AppConfig.headers,
+        body: json.encode(' . $camelName . '.toJson()),
+      );
 
-    if (response.statusCode == 200) {
-      return ' . $studlyName . '.fromJson(json.decode(response.body));
-    } else {
-      throw Exception("Failed to update ' . $studlyName . '");
+      if (response.statusCode == 200) {
+        return ' . $studlyName . '.fromJson(json.decode(response.body));
+      } else {
+        final errorMessage = _extractErrorMessage(response);
+        throw Exception(\'Failed to update ' . $studlyName . ': $errorMessage\');
+      }
+    } catch (e) {
+      throw Exception(\'Network error updating ' . $studlyName . ': $e\');
     }
   }
 
   static Future<void> delete(int id) async {
-    final response = await http.delete(
-      Uri.parse("${AppConfig.baseUrl}/$basePath/\$id"),
-      headers: AppConfig.headers,
-    );
+    try {
+      final response = await http.delete(
+        Uri.parse("${AppConfig.baseUrl}/$basePath/$id"),
+        headers: AppConfig.headers,
+      );
 
-    if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception("Failed to delete ' . $studlyName . '");
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        final errorMessage = _extractErrorMessage(response);
+        throw Exception(\'Failed to delete ' . $studlyName . ': $errorMessage\');
+      }
+    } catch (e) {
+      throw Exception(\'Network error deleting ' . $studlyName . ': $e\');
+    }
+  }
+
+  static String _extractErrorMessage(http.Response response) {
+    try {
+      final Map<String, dynamic> errorBody = json.decode(response.body);
+      if (errorBody.containsKey(\'message\')) {
+        return errorBody[\'message\'];
+      } else if (errorBody.containsKey(\'error\')) {
+        return errorBody[\'error\'];
+      } else {
+        return "Status code: ${response.statusCode} - ${response.body}";
+      }
+    } catch (e) {
+      return "Status code: ${response.statusCode} - ${response.body}";
     }
   }
 }';
 
-        return $content;
-    }
+    return $content;
+}
 
     /**
      * Generar pantallas CRUD

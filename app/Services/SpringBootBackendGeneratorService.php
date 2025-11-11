@@ -279,16 +279,16 @@ public interface ' . $studlyName . 'Repository extends JpaRepository<' . $studly
     }
 
     private function generateServices()
-    {
-        $services = [];
+{
+    $services = [];
+    
+    File::ensureDirectoryExists($this->outputPath . '/src/main/java/com/example/' . $this->projectName . '/service');
+    
+    foreach ($this->parsedStructure['classes'] as $className => $classData) {
+        $studlyName = Str::studly($className);
+        $camelName = Str::camel($className);
 
-        File::ensureDirectoryExists($this->outputPath . '/src/main/java/com/example/' . $this->projectName . '/service');
-
-        foreach ($this->parsedStructure['classes'] as $className => $classData) {
-            $studlyName = Str::studly($className);
-            $camelName = Str::camel($className);
-
-            $content = 'package com.example.' . $this->projectName . '.service;
+        $content = 'package com.example.' . $this->projectName . '.service;
 
 import com.example.' . $this->projectName . '.entity.' . $studlyName . ';
 import com.example.' . $this->projectName . '.repository.' . $studlyName . 'Repository;
@@ -317,39 +317,52 @@ public class ' . $studlyName . 'Service {
     }
 
     public ' . $studlyName . ' update(Long id, ' . $studlyName . ' ' . $camelName . ') {
-        // Asegurar que el ID del path coincida con el ID del objeto
-        ' . $camelName . '.setId(id);
-        return ' . $camelName . 'Repository.save(' . $camelName . ');
+        Optional<' . $studlyName . '> existing' . $studlyName . ' = ' . $camelName . 'Repository.findById(id);
+        if (existing' . $studlyName . '.isPresent()) {
+            ' . $camelName . '.setId(id);
+            return ' . $camelName . 'Repository.save(' . $camelName . ');
+        } else {
+            throw new RuntimeException("' . $studlyName . ' not found with id: " + id);
+        }
     }
 
     public void deleteById(Long id) {
-        ' . $camelName . 'Repository.deleteById(id);
+        if (' . $camelName . 'Repository.existsById(id)) {
+            ' . $camelName . 'Repository.deleteById(id);
+        } else {
+            throw new RuntimeException("' . $studlyName . ' not found with id: " + id);
+        }
+    }
+
+    public boolean existsById(Long id) {
+        return ' . $camelName . 'Repository.existsById(id);
     }
 }';
 
-            $filePath = $this->outputPath . '/src/main/java/com/example/' . $this->projectName . '/service/' . $studlyName . 'Service.java';
-            File::put($filePath, $content);
-            $services[] = $filePath;
-        }
-
-        return $services;
+        $filePath = $this->outputPath . '/src/main/java/com/example/' . $this->projectName . '/service/' . $studlyName . 'Service.java';
+        File::put($filePath, $content);
+        $services[] = $filePath;
     }
 
+    return $services;
+}
+
     private function generateControllers()
-    {
-        $controllers = [];
+{
+    $controllers = [];
 
-        File::ensureDirectoryExists($this->outputPath . '/src/main/java/com/example/' . $this->projectName . '/controller');
+    File::ensureDirectoryExists($this->outputPath . '/src/main/java/com/example/' . $this->projectName . '/controller');
 
-        foreach ($this->parsedStructure['classes'] as $className => $classData) {
-            $studlyName = Str::studly($className);
-            $camelName = Str::camel($className);
+    foreach ($this->parsedStructure['classes'] as $className => $classData) {
+        $studlyName = Str::studly($className);
+        $camelName = Str::camel($className);
 
-            $content = 'package com.example.' . $this->projectName . '.controller;
+        $content = 'package com.example.' . $this->projectName . '.controller;
 
 import com.example.' . $this->projectName . '.entity.' . $studlyName . ';
 import com.example.' . $this->projectName . '.service.' . $studlyName . 'Service;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -381,33 +394,49 @@ public class ' . $studlyName . 'Controller {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<' . $studlyName . '> update(@PathVariable Long id, @RequestBody ' . $studlyName . ' ' . $camelName . ') {
+    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody ' . $studlyName . ' ' . $camelName . ') {
         try {
             ' . $studlyName . ' updated' . $studlyName . ' = ' . $camelName . 'Service.update(id, ' . $camelName . ');
             return ResponseEntity.ok(updated' . $studlyName . ');
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("not found")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Error: ' . $studlyName . ' with id " + id + " not found");
+            }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body("Error updating ' . $studlyName . ': " + e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Unexpected error updating ' . $studlyName . ': " + e.getMessage());
         }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteById(@PathVariable Long id) {
+    public ResponseEntity<?> deleteById(@PathVariable Long id) {
         try {
             ' . $camelName . 'Service.deleteById(id);
             return ResponseEntity.ok().build();
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("not found")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("Error: ' . $studlyName . ' with id " + id + " not found");
+            }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body("Error deleting ' . $studlyName . ': " + e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Unexpected error deleting ' . $studlyName . ': " + e.getMessage());
         }
     }
 }';
 
-            $filePath = $this->outputPath . '/src/main/java/com/example/' . $this->projectName . '/controller/' . $studlyName . 'Controller.java';
-            File::put($filePath, $content);
-            $controllers[] = $filePath;
-        }
-
-        return $controllers;
+        $filePath = $this->outputPath . '/src/main/java/com/example/' . $this->projectName . '/controller/' . $studlyName . 'Controller.java';
+        File::put($filePath, $content);
+        $controllers[] = $filePath;
     }
+
+    return $controllers;
+}
 
     private function generateDTOs()
     {
