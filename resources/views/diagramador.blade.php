@@ -73,7 +73,8 @@
                 <input type="text" id="aiPrompt" placeholder="Ej: Agrega una clase 'Producto' con id y nombre"
                     style="width: 70%; padding: 5px;">
                 <button onclick="updateWithAI()" style="padding: 5px;">Generar</button>
-                
+                 <button onclick="startVoiceRecognition()" style="padding: 5px;">Usar Voz</button>
+    <div id="voiceStatus" style="font-size: 12px; margin-top: 5px;"></div>
             </div>
             <div id="myDiagramDiv"></div>
         </div>
@@ -1052,7 +1053,54 @@
 
             // 🔥 ¡AQUÍ ESTÁ LA CORRECCIÓN! Llamamos a la función para escuchar eventos.
         }
+function startVoiceRecognition() {
+    const voiceStatus = document.getElementById('voiceStatus');
+    
+    // Verificar si el navegador soporta reconocimiento de voz
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        voiceStatus.textContent = 'Tu navegador no soporta reconocimiento de voz';
+        voiceStatus.style.color = 'red';
+        return;
+    }
 
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    // Configuración para español
+    recognition.lang = 'es-ES';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    voiceStatus.textContent = 'Escuchando... Habla ahora';
+    voiceStatus.style.color = 'blue';
+
+    recognition.start();
+
+    recognition.onresult = function(event) {
+        const transcript = event.results[0][0].transcript;
+        document.getElementById('aiPrompt').value = transcript;
+        voiceStatus.textContent = `Texto reconocido: "${transcript}"`;
+        voiceStatus.style.color = 'green';
+        
+        // Enviar automáticamente después de reconocer
+        setTimeout(() => {
+            updateWithAI();
+        }, 1000);
+    };
+
+    recognition.onerror = function(event) {
+        console.error('Error en reconocimiento de voz:', event.error);
+        voiceStatus.textContent = `Error: ${event.error}`;
+        voiceStatus.style.color = 'red';
+    };
+
+    recognition.onend = function() {
+        // Limpiar el estado después de un tiempo
+        setTimeout(() => {
+            voiceStatus.textContent = '';
+        }, 3000);
+    };
+}
         // Función para actualizar el diagrama con IA
         function updateWithAI() {
             var prompt = document.getElementById('aiPrompt').value;
