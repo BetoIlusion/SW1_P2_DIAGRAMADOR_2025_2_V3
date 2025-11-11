@@ -218,15 +218,19 @@ const selectedDiagram = ref(null)
 
 // Filtrado que no distingue mayúsculas/minúsculas
 const filteredDiagramas = computed(() => {
-    if (!searchTerm.value.trim()) {
-        return props.diagramas
+    let lista = props.diagramas
+
+    // 🔍 Filtrar si hay búsqueda
+    if (searchTerm.value.trim()) {
+        const term = searchTerm.value.toLowerCase()
+        lista = lista.filter(diagrama =>
+            diagrama.nombre.toLowerCase().includes(term) ||
+            (diagrama.descripcion && diagrama.descripcion.toLowerCase().includes(term))
+        )
     }
 
-    const term = searchTerm.value.toLowerCase()
-    return props.diagramas.filter(diagrama =>
-        diagrama.nombre.toLowerCase().includes(term) ||
-        (diagrama.descripcion && diagrama.descripcion.toLowerCase().includes(term))
-    )
+    // 🔽 Orden descendente por ID
+    return [...lista].sort((a, b) => b.id - a.id)
 })
 
 // Métodos

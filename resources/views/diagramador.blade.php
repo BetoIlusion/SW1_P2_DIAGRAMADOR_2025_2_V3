@@ -73,6 +73,7 @@
                 <input type="text" id="aiPrompt" placeholder="Ej: Agrega una clase 'Producto' con id y nombre"
                     style="width: 70%; padding: 5px;">
                 <button onclick="updateWithAI()" style="padding: 5px;">Generar</button>
+                
             </div>
             <div id="myDiagramDiv"></div>
         </div>
